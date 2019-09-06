@@ -27,12 +27,12 @@ class TestElection(unittest.TestCase, ZkClientMixin):
         self.close()
 
 
-    def _leader_callback(self, election):
-        if election.is_leader:
+    def _leader_callback(self, is_leader, election):
+        if is_leader:
             print('%s I am leader' % election.name)
 
         else:
-            print('%s: quit', election.name)
+            print('%s: quit' % election.name)
 
 
     def test_election(self):
@@ -49,7 +49,30 @@ class TestElection(unittest.TestCase, ZkClientMixin):
         self.assertTrue(any( [i.is_leader for i in self.contender_list] ))
         self.assertEqual(1, len([i for i in self.contender_list if i.is_leader]))
 
+        for leader_idx, contender in enumerate(self.contender_list):
+            if contender.is_leader:
+                break
 
+
+        first_contender = self.contender_list[leader_idx]
+
+        first_contender.quit()
+        first_contender.join()
+
+        time.sleep(2)
+
+        self.assertTrue(any([i.is_leader for i in self.contender_list[1:]]))
+        self.assertEqual(1, len([i for i in self.contender_list if i.is_leader]))
+
+        sub_contender = LeaderElection(self.client, '/test/election', 'contender%s' % self.contender_num)
+        sub_contender.start()
+
+        self.contender_list[leader_idx]=sub_contender
+
+        time.sleep(2)
+
+        self.assertTrue(any([i.is_leader for i in self.contender_list[1:]]))
+        self.assertEqual(1, len([i for i in self.contender_list if i.is_leader]))
 
 
 
