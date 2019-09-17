@@ -13,26 +13,28 @@ class Task():
 
         self.worker_path = self.base_path+'/worker'
         self.data_path = self.base_path + '/data'
+        self.enqueue_time = self.base_path + '/enqueue_time'
+        self.dequeue_time = self.base_path + '/dequeue_time'
         self.start_time_path = self.base_path + '/start_time'
         self.end_time_path = self.base_path + '/end_time'
+        self.state_path = self.base_path + '/task_state'
 
-    def get(path):
+    def get(path_variable):
         def decorator(func):
             @wraps(func)
             def wrapper(self, *args, **kwargs):
-                if not self.zk_client.exists(getattr(self, path)):
+                if not self.zk_client.exists(getattr(self, path_variable)):
                     return None
                 return func(self, *args, **kwargs)
 
             return wrapper
         return decorator
 
-    def set(path):
+    def set(path_variable):
         def decorator(func):
             @wraps(func)
             def wrapper(self, *args, **kwargs):
-                if not self.zk_client.exists(getattr(self, path)):
-                    self.zk_client.ensure_path(getattr(self, path))
+                self.zk_client.ensure_path(getattr(self, path_variable))
                 return func(self, *args, **kwargs)
             return wrapper
         return decorator
@@ -65,6 +67,22 @@ class Task():
     def get_end_time(self):
         return self.zk_client.get(self.end_time_path)[0].decode('utf-8')
 
+    @set('enqueue_time')
+    def set_enqueue_time(self, time_str):
+        self.zk_client.set(self.enqueue_time, time_str.encode('utf-8'))
+
+    @get('enqueue_time')
+    def get_enqueue_time(self):
+        return self.zk_client.get(self.enqueue_time)[0].decode('utf-8')
+
+    @set('dequeue_time')
+    def set_dequeue_time(self, time_str):
+        self.zk_client.set(self.dequeue_time, time_str.encode('utf-8'))
+
+    @get('enqueue_time')
+    def get_dequeue_time(self):
+        return self.zk_client.get(self.dequeue_time)[0].decode('utf-8')
+
     def get_runtime(self):
         time = self.get_start_time()
         if time is None:
@@ -79,3 +97,7 @@ class Task():
             return None
 
         return (datetime.strptime(time_end, '%Y-%m-%d %H:%M:%S') - datetime.strptime(time_start, '%Y-%m-%d %H:%M:%S')).seconds
+
+    @get('state_path')
+    def get_state(self):
+        return self.zk_client.get(self.state_path)[0].decode('utf-8')
