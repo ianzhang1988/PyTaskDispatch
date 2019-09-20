@@ -10,7 +10,7 @@ from ..master.task import Task
 from ..master.job import Job
 from ..master.consts import TaskStateCode
 import datetime
-
+import json
 
 class TestTask(unittest.TestCase, ZkClientMixin):
 
@@ -33,11 +33,13 @@ class TestTask(unittest.TestCase, ZkClientMixin):
             "type":"test"
         }
         '''
-        ret, path = self.core.add_new_job(job_data)
+        data = json.loads(job_data)
+
+        ret, path = self.core.add_new_job(data)
         self.assertEqual(ret, True)
 
         j = Job(self.client, path)
         self.assertEqual( j.get_id(), 'test')
-        self.assertEqual( j.get_data(), '{"hello":"world"}' )
+        self.assertEqual( j.get_data(), json.dumps(json.loads('{"hello":"world"}')) )
         self.assertEqual( j.get_type(), 'test')
 

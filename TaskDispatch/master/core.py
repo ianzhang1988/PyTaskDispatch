@@ -22,7 +22,8 @@ class Core():
         self.zk_client.ensure_path(self.masters_path)
 
     def add_new_job(self, data):
-        new_node_path = create_new_sequence_node(self. zk_client, self.jobs_path, 'job')
+        new_node_path = create_new_sequence_node(self.zk_client, self.jobs_path, 'job')
+        print('new_node_path:', new_node_path)
         j = Job(self.zk_client, new_node_path)
         ret = j.parse(data)
         return ret, new_node_path

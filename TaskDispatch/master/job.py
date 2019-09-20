@@ -5,12 +5,14 @@
 
 from .task import Task
 import json
+import logging
+import traceback
 
 class Job(Task):
     def __init__(self,zk_client, base_path):
         self.job_base_path = base_path
         self.job_task_base_path = base_path + '/job_task'
-        zk_client.create(self.job_task_base_path,''.encode('utf-8'))
+        zk_client.ensure_path(self.job_task_base_path)
         super().__init__(zk_client, self.job_task_base_path)
 
         self.meta_data_path=self.job_base_path+'/meta_data'
@@ -18,12 +20,30 @@ class Job(Task):
         self.cluster_path = self.job_base_path +'/cluster'
         self.type_path = self.job_base_path + '/type'
 
-    def parse(self, data_str):
-        data = None
-        try:
-            data = json.loads(data_str)
+    def parse(self, data):
+        #data = None
+        # try:
+        #     data = json.loads(data_str)
+        #
+        # except Exception as e:
+        #     logging.error('parse job data failed')
+        #     return False
 
-        except as e:
+        try:
+            self.set_id(data['id'])
+            self.set_meta_data(data['meta_data'])
+            self.set_cluster(data['cluster'])
+            self.set_type(data['type'])
+
+            # task
+            self.set_data(json.dumps(data['data']))
+
+        except Exception as e:
+            logging.error('setup job failed %s', str(e))
+            traceback.print_exc()
+            return False
+
+        return True
 
 
     @Task.set('meta_data_path')
