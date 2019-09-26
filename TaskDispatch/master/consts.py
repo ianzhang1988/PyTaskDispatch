@@ -5,7 +5,8 @@
 
 class TaskStateCode():
     IDLE='idle'
-    QUEUEING='queueing'
+    QUEUE= 'queue'
+    DEQUEUE='dequeue'
     WORKING='working'
     FINISHED='finished'
 

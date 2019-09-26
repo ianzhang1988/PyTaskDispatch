@@ -15,6 +15,9 @@ class Job(Task):
         zk_client.ensure_path(self.job_task_base_path)
         super().__init__(zk_client, self.job_task_base_path)
 
+        self.priority = 0
+
+        self.priority_path=self.job_base_path+'/priority'
         self.meta_data_path=self.job_base_path+'/meta_data'
         self.id_path = self.job_base_path+'/id'
         self.cluster_path = self.job_base_path +'/cluster'
@@ -34,6 +37,7 @@ class Job(Task):
             self.set_meta_data(data['meta_data'])
             self.set_cluster(data['cluster'])
             self.set_type(data['type'])
+            self.set_priority(str(data['priority']))
 
             # task
             self.set_data(json.dumps(data['data']))
@@ -45,6 +49,8 @@ class Job(Task):
 
         return True
 
+    def delete(self):
+        self.zk_client.delete(self.job_base_path, recursive=True)
 
     @Task.set('meta_data_path')
     def set_meta_data(self, data):
@@ -77,3 +83,12 @@ class Job(Task):
     @Task.get('type_path')
     def get_type(self):
         return self.zk_client.get(self.type_path)[0].decode('utf-8')
+
+
+    @Task.set('priority_path')
+    def set_priority(self, data):
+        self.zk_client.set(self.priority_path, data.encode('utf-8'))
+
+    @Task.get('priority_path')
+    def get_priority(self):
+        return int(self.zk_client.get(self.priority_path)[0].decode('utf-8'))

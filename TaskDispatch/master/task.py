@@ -98,6 +98,10 @@ class Task():
 
         return (datetime.strptime(time_end, '%Y-%m-%d %H:%M:%S') - datetime.strptime(time_start, '%Y-%m-%d %H:%M:%S')).seconds
 
+    @set('state_path')
+    def set_state(self, data):
+        self.zk_client.set(self.state_path, data.encode('utf-8'))
+
     @get('state_path')
     def get_state(self):
         return self.zk_client.get(self.state_path)[0].decode('utf-8')
