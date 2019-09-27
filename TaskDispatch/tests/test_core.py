@@ -53,55 +53,62 @@ class TestTask(unittest.TestCase, ZkClientMixin):
         self.assertEqual( None, self.zk_client.exists(path))
 
 
-    # def test_get_dequeue_job_task(self):
-    #     new_jobs=[[] for i in range(2)]
-    #     all_jobs=[]
-    #
-    #     for c in range(2):
-    #         for i in range(10):
-    #             job_data_template = '''
-    #             {
-    #                 "id":"test_{cluster}_{id}",
-    #                 "meta_data":"",
-    #                 "data": {
-    #                     "hello":"world"
-    #                 },
-    #                 "cluster":"test_{cluster}",
-    #                 "type":"test",
-    #                 "priority": {priority}
-    #             }
-    #             '''
-    #             job_data = job_data_template.format(id=i,cluster=c, priority=i)
-    #             data = json.loads(job_data)
-    #             ret, path = self.core.add_new_job(data)
-    #             self.assertEqual(ret, True)
-    #             j = Job(self.zk_client, path)
-    #             new_jobs[c].append(j)
-    #             all_jobs.append(j)
-    #
-    #     self.core._cluster_job_upper_threshold=5
-    #     self.core._cluster_job_lower_threshold=3
-    #     self.core.add_cluster('test_0')
-    #     self.core.add_cluster('test_1')
-    #
-    #     self.core.prepare_dequeue_job()
-    #
-    #     self.assertEqual(5, len(self.core._cluster['test_0']))
-    #
-    #     for j in self.core._cluster['test_0']:
-    #         self.assertLess(4, j.get_priority())
-    #
-    #     job_path = self.core.get_dequque_job_task(cluster='test_0', type='test')
-    #
-    #     dequeue_job_task = Job(self.zk_client, job_path)
-    #     self.assertEqual(9,                      dequeue_job_task.get_priority())
-    #     self.assertEqual(TaskStateCode.DEQUEUE , dequeue_job_task.get_state() )
-    #
-    #     job_path = self.core.get_dequque_job_task(cluster='test_0', type='test')
-    #
-    #     dequeue_job_task = Job(self.zk_client, job_path)
-    #     self.assertEqual(8, dequeue_job_task.get_priority())
-    #     self.assertEqual(TaskStateCode.DEQUEUE, dequeue_job_task.get_state())
+    def test_get_dequeue_job_task(self):
+        new_jobs=[[] for i in range(2)]
+        all_jobs=[]
+
+        for c in range(2):
+            for i in range(10):
+                job_data_template = """
+                {{
+                    "id":"test_{cluster}_{id}",
+                    "meta_data":"",
+                    "data": {{
+                        "hello":"world"
+                    }},
+                    "cluster":"test_{cluster}",
+                    "type":"test",
+                    "priority": {priority}
+                }}
+                """
+                job_data = job_data_template.format(id=i,cluster=c, priority=i)
+                data = json.loads(job_data)
+                ret, path = self.core.add_new_job(data)
+                self.assertEqual(ret, True)
+                j = Job(self.zk_client, path)
+                new_jobs[c].append(j)
+                all_jobs.append(j)
+
+        self.core._cluster_job_upper_threshold=5
+        self.core._cluster_job_lower_threshold=3
+        self.core.add_cluster('test_0')
+        self.core.add_cluster('test_1')
+
+        self.core.prepare_dequeue_job()
+
+        self.assertEqual(5, len(self.core._cluster_job['test_0']))
+
+        for j in self.core._cluster_job['test_0']:
+            self.assertLess(4, j.get_priority())
+
+        job_path = self.core.get_dequeue_job_task(cluster_name='test_0', task_type='test')
+
+        print('job_path', job_path )
+        dequeue_job_task = Job(self.zk_client, job_path)
+        self.assertEqual(9,                         dequeue_job_task.get_priority())
+        self.assertEqual(TaskStateCode.READY,       dequeue_job_task.get_state() )
+
+        job_path = self.core.get_dequeue_job_task(cluster_name='test_0', task_type='test')
+
+        dequeue_job_task = Job(self.zk_client, job_path)
+        self.assertEqual(8, dequeue_job_task.get_priority())
+        self.assertEqual(TaskStateCode.READY,       dequeue_job_task.get_state())
+
+        for j in all_jobs:
+            j.delete()
+
+    def test_get_dequeue_task(self):
+        
 
     # no need for a new class
     def test_cluster(self):

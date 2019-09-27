@@ -3,9 +3,7 @@
 # @Author  : ZhangYang
 # @Email   : ian.zhang.88@outlook.com
 
-from .utility import SetGetMixin
-
-class Cluster(SetGetMixin):
+class Cluster():
     def __init__(self, zk_client, base_path):
         self.zk_client = zk_client
         self.base_path = base_path

@@ -19,6 +19,9 @@ class Task():
         self.end_time_path = self.base_path + '/end_time'
         self.state_path = self.base_path + '/task_state'
 
+    def task_path(self):
+        return self.base_path
+
     def get(path_variable):
         def decorator(func):
             @wraps(func)

@@ -7,8 +7,9 @@ class TaskStateCode():
     IDLE='idle'
     QUEUE= 'queue'
     DEQUEUE='dequeue'
-    WORKING='working'
-    FINISHED='finished'
+    READY='ready'
+    WORKING='working'       # set by job_task
+    FINISHED='finished'     # set by job_task
 
 class TaskTypeCode():
     UNIVERSAL='universal'

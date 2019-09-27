@@ -23,6 +23,9 @@ class Job(Task):
         self.cluster_path = self.job_base_path +'/cluster'
         self.type_path = self.job_base_path + '/type'
 
+    def job_path(self):
+        return self.job_base_path
+
     def parse(self, data):
         #data = None
         # try:
