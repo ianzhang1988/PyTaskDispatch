@@ -91,14 +91,17 @@ class TestTask(unittest.TestCase, ZkClientMixin):
         for j in self.core._cluster_job['test_0']:
             self.assertLess(4, j.get_priority())
 
-        job_path = self.core.get_dequeue_job_task(cluster_name='test_0', task_type='test')
+        job_path, task_path, task_data = self.core.get_dequeue_job_task(cluster_name='test_0', task_type='test')
 
         print('job_path', job_path )
+        print('task_path', task_path)
+        self.assertEqual(job_path+'/job_task', task_path)
         dequeue_job_task = Job(self.zk_client, job_path)
         self.assertEqual(9,                         dequeue_job_task.get_priority())
         self.assertEqual(TaskStateCode.READY,       dequeue_job_task.get_state() )
+        self.assertEqual(task_data,                 dequeue_job_task.get_data())
 
-        job_path = self.core.get_dequeue_job_task(cluster_name='test_0', task_type='test')
+        job_path, task_path, task_data = self.core.get_dequeue_job_task(cluster_name='test_0', task_type='test')
 
         dequeue_job_task = Job(self.zk_client, job_path)
         self.assertEqual(8, dequeue_job_task.get_priority())
@@ -107,8 +110,50 @@ class TestTask(unittest.TestCase, ZkClientMixin):
         for j in all_jobs:
             j.delete()
 
-    def test_get_dequeue_task(self):
-        
+    def test_task(self):
+        job_data_template = """
+            {{
+                "id":"test_{cluster}_{id}",
+                "meta_data":"",
+                "data": {{
+                    "hello":"world"
+                }},
+                "cluster":"test_{cluster}",
+                "type":"test",
+                "priority": {priority}
+            }}
+            """
+        job_data = job_data_template.format(id='001', cluster=1, priority=5)
+        data = json.loads(job_data)
+        ret, path = self.core.add_new_job(data)
+        self.assertEqual(ret, True)
+        j = Job(self.zk_client, path)
+
+        self._test_task_add(j)
+
+        self._test_task_dequeue()
+
+        j.delete()
+
+    def _test_task_add(self, j):
+
+        for i in range(10):
+            task_data = {
+                'data':{
+                    'mark': str(i),
+                },
+            }
+            ret, path = self.core.add_new_task(j.job_path(), task_data)
+            self.assertEqual(ret, True)
+
+    def _test_task_dequeue(self):
+
+        ret, task_path, task_data = self.core.get_enqueue_task(cluster_name='test_1', task_type='test')
+        self.assertEqual(ret, True)
+
+        t = Task(self.zk_client, task_path)
+        self.assertTrue('001' in task_path)
+        self.assertEqual(task_data, t.get_data)
 
     # no need for a new class
     def test_cluster(self):

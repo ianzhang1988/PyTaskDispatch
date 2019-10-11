@@ -12,6 +12,7 @@ class Job(Task):
     def __init__(self,zk_client, base_path):
         self.job_base_path = base_path
         self.job_task_base_path = base_path + '/job_task'
+        self.task_base_path = base_path + '/tasks'
         zk_client.ensure_path(self.job_task_base_path)
         super().__init__(zk_client, self.job_task_base_path)
 

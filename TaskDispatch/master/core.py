@@ -76,15 +76,19 @@ class Core():
         jobs = self._cluster_job[cluster_name]
 
         job_task_path = None
+        task_path = None
+        task_data = None
 
         for j in jobs:
             if j.get_type() != task_type:
                 continue
             if j.get_state() == TaskStateCode.DEQUEUE:
                 job_task_path = j.job_path()
+                task_path = j.task_path()
+                task_data = j.get_data()
                 j.set_state(TaskStateCode.READY)
                 break
 
-        return job_task_path
+        return job_task_path, task_path, task_data
 
 
