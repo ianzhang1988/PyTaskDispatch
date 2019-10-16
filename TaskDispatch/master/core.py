@@ -5,6 +5,7 @@
 
 from .utility import create_new_sequence_node
 from .job import Job
+from .task import Task
 from .consts import TaskStateCode
 from .cluster import Cluster
 
@@ -19,6 +20,7 @@ class Core():
         self.cluster_path = self.base_path + '/clusters'
 
         self._cluster_job = {}
+        self._all_job={}
 
         self._cluster_job_upper_threshold=50
         self._cluster_job_lower_threshold=20
@@ -48,6 +50,7 @@ class Core():
         j = Job(self.zk_client, new_node_path)
         ret = j.parse(data)
         j.set_state(TaskStateCode.QUEUE)
+        self._all_job[new_node_path]=j
         return ret, new_node_path
 
     def prepare_dequeue_job(self):
@@ -91,4 +94,63 @@ class Core():
 
         return job_task_path, task_path, task_data
 
+    def add_new_task(self, job_path, task_data):
 
+        if job_path not in self._all_job:
+            return False, 'job not exists'
+
+        j = self._all_job[job_path]
+
+        new_task_path = create_new_sequence_node(self.zk_client, j.task_base_path, 'task')
+
+        t = Task(self.zk_client, new_task_path)
+        t.set_data(task_data)
+        t.set_state(TaskStateCode.QUEUE)
+
+        return True, new_task_path
+
+    # alternative prepare in main loop, save in mem, send here, instead of search every time
+    def get_queue_task(self, cluster_name, task_type):
+
+        if cluster_name not in self._cluster_job:
+            return False, 'cluster not exists'
+
+        dequeue_task_path = None
+
+        # jobs_in_cluster sorted in priority, so this cover priority
+        jobs_in_cluster = self._cluster_job[cluster_name]
+
+        for job in jobs_in_cluster:
+            if job.get_type() != task_type:
+                continue
+
+            if job.get_state() != TaskStateCode.WORKING:
+                continue
+
+            tasks = job.get_tasks_path()
+
+            if not tasks:
+                continue
+
+            for t_path in tasks:
+                t = Task(self.zk_client, t_path)
+                if t.get_state() != TaskStateCode.QUEUE:
+                    continue
+
+                dequeue_task_path = t_path
+                t.set_state( TaskStateCode.READY )
+
+                return True, dequeue_task_path
+
+        return False, 'no task found'
+
+    def update_task_state(self, task_path, state):
+        if not self.zk_client.exists(task_path):
+            return False
+
+        t = Task(self.zk_client, task_path)
+        t.set_state(state)
+
+        # todo: update time
+
+        return True

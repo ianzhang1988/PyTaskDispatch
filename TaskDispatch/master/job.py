@@ -13,6 +13,7 @@ class Job(Task):
         self.job_base_path = base_path
         self.job_task_base_path = base_path + '/job_task'
         self.task_base_path = base_path + '/tasks'
+        zk_client.ensure_path(self.task_base_path)
         zk_client.ensure_path(self.job_task_base_path)
         super().__init__(zk_client, self.job_task_base_path)
 
@@ -28,13 +29,6 @@ class Job(Task):
         return self.job_base_path
 
     def parse(self, data):
-        #data = None
-        # try:
-        #     data = json.loads(data_str)
-        #
-        # except Exception as e:
-        #     logging.error('parse job data failed')
-        #     return False
 
         try:
             self.set_id(data['id'])
@@ -88,7 +82,6 @@ class Job(Task):
     def get_type(self):
         return self.zk_client.get(self.type_path)[0].decode('utf-8')
 
-
     @Task.set('priority_path')
     def set_priority(self, data):
         self.zk_client.set(self.priority_path, data.encode('utf-8'))
@@ -96,3 +89,10 @@ class Job(Task):
     @Task.get('priority_path')
     def get_priority(self):
         return int(self.zk_client.get(self.priority_path)[0].decode('utf-8'))
+
+    def get_tasks_path(self):
+        task_path_list = self.zk_client.get_children(self.task_base_path)
+
+        task_full_path_list = [ self.task_base_path + '/' +p for p in task_path_list]
+
+        return task_full_path_list

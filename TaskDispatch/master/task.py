@@ -6,6 +6,8 @@
 from functools import wraps
 from datetime import datetime
 
+# todo: cache some attribute so that we don't need check with zookeeper every time
+
 class Task():
     def __init__(self, zk_client, base_path):
         self.zk_client = zk_client

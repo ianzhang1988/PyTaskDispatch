@@ -20,8 +20,8 @@ class TestTask(unittest.TestCase, ZkClientMixin):
         ZkClientMixin.__init__(self)
 
         self.zk_client = self.get_client()
+        self.zk_client.delete('/TaskDispatch',recursive=True)
         self.core = Core(self.zk_client)
-
 
     def test_add_job(self):
         job_data = '''
@@ -125,9 +125,15 @@ class TestTask(unittest.TestCase, ZkClientMixin):
             """
         job_data = job_data_template.format(id='001', cluster=1, priority=5)
         data = json.loads(job_data)
+        self.core.add_cluster('test_1')
         ret, path = self.core.add_new_job(data)
         self.assertEqual(ret, True)
+        self.core.prepare_dequeue_job()
+
         j = Job(self.zk_client, path)
+
+        # simulate job_task working
+        j.set_state(TaskStateCode.WORKING)
 
         self._test_task_add(j)
 
@@ -143,17 +149,27 @@ class TestTask(unittest.TestCase, ZkClientMixin):
                     'mark': str(i),
                 },
             }
+            task_data=json.dumps(task_data)
             ret, path = self.core.add_new_task(j.job_path(), task_data)
             self.assertEqual(ret, True)
 
     def _test_task_dequeue(self):
 
-        ret, task_path, task_data = self.core.get_enqueue_task(cluster_name='test_1', task_type='test')
-        self.assertEqual(ret, True)
+        tesk_path_set = set()
 
-        t = Task(self.zk_client, task_path)
-        self.assertTrue('001' in task_path)
-        self.assertEqual(task_data, t.get_data)
+        for i in range(10):
+            ret, task_path = self.core.get_queue_task(cluster_name='test_1', task_type='test')
+            print(task_path)
+            self.assertEqual(ret, True)
+
+
+            t = Task(self.zk_client, task_path)
+            tesk_path_set.add(task_path)
+
+            self.assertTrue('mark' in t.get_data())
+
+        self.assertEqual(10, len(tesk_path_set))
+
 
     # no need for a new class
     def test_cluster(self):
@@ -182,4 +198,32 @@ class TestTask(unittest.TestCase, ZkClientMixin):
 
         clusters = c.get_all()
         self.assertEqual(0, len(clusters))
+
+    def test_update_task_state(self):
+
+        job_data_template = """
+                    {{
+                        "id":"test_{cluster}_{id}",
+                        "meta_data":"",
+                        "data": {{
+                            "hello":"world"
+                        }},
+                        "cluster":"test_{cluster}",
+                        "type":"test",
+                        "priority": {priority}
+                    }}
+                    """
+        job_data = job_data_template.format(id='001', cluster=1, priority=5)
+        data = json.loads(job_data)
+        self.core.add_cluster('test_1')
+        ret, path = self.core.add_new_job(data)
+        self.assertEqual(ret, True)
+
+        j = Job(self.zk_client, path)
+
+        self.core.update_task_state(path+'/job_task', TaskStateCode.WORKING)
+
+        self.assertEqual(j.get_state(), TaskStateCode.WORKING)
+
+        j.delete()
 

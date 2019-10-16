@@ -7,6 +7,7 @@ import unittest
 from .utility import ZkClientMixin
 from ..master.task import Task
 from ..master.job import Job
+from ..master.utility import create_new_sequence_node
 from ..master.consts import TaskStateCode
 import datetime
 
@@ -96,4 +97,22 @@ class TestTask(unittest.TestCase, ZkClientMixin):
 
         t.set_type('universal')
         self.assertEqual(t.get_type(), 'universal')
+
+    def test_job_get_tasks(self):
+        j = Job(self.zk_client, self.job_base_path)
+
+        new_tasks_path=set()
+
+        for i in range(3):
+
+            new_task_path = create_new_sequence_node(self.zk_client, j.task_base_path, 'task')
+
+            t = Task(self.zk_client, new_task_path)
+            t.set_data('test_%s'%i)
+            t.set_state(TaskStateCode.QUEUE)
+
+            new_tasks_path.add(new_task_path)
+
+        self.assertEqual(new_tasks_path, set(j.get_tasks_path()))
+
 
