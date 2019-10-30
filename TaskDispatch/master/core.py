@@ -10,10 +10,10 @@ from .consts import TaskStateCode
 from .cluster import Cluster
 
 class Core():
-    def __init__(self, zk_client):
+    def __init__(self, zk_client, base_path='/TaskDispatch'):
         self.zk_client = zk_client
 
-        self.base_path='/TaskDispatch'
+        self.base_path=base_path
         self.jobs_path = self.base_path + '/jobs'
         self.workers_path = self.base_path + '/workers'
         self.masters_path = self.base_path + '/masters'
@@ -43,19 +43,20 @@ class Core():
             return True
         return False
 
-
     def add_new_job(self, data):
         new_node_path = create_new_sequence_node(self.zk_client, self.jobs_path, 'job')
         print('new_node_path:', new_node_path)
         j = Job(self.zk_client, new_node_path)
         ret = j.parse(data)
         j.set_state(TaskStateCode.QUEUE)
-        self._all_job[new_node_path]=j
+        # self._all_job[new_node_path]=j
         return ret, new_node_path
+
 
     def prepare_dequeue_job(self):
         jobs_path = self.zk_client.get_children(self.jobs_path)
         jobs = [Job(self.zk_client, self.jobs_path+'/'+path) for path in jobs_path]
+        jobs = [ j for j in jobs if j.get_state() == TaskStateCode.QUEUE]
 
         clusters = self.cluster.get_all()
 
@@ -75,10 +76,12 @@ class Core():
             self._cluster_job[c].extend(jobs_needed)
             self._cluster_job[c] = sorted(self._cluster_job[c], key=lambda x: x.get_priority(), reverse=True )
 
+            self._all_job.update({ j.job_path():j for j in jobs_needed})
+
     def get_dequeue_job_task(self, cluster_name, task_type):
         jobs = self._cluster_job[cluster_name]
 
-        job_task_path = None
+        job_path = None
         task_path = None
         task_data = None
 
@@ -86,13 +89,13 @@ class Core():
             if j.get_type() != task_type:
                 continue
             if j.get_state() == TaskStateCode.DEQUEUE:
-                job_task_path = j.job_path()
+                job_path = j.job_path()
                 task_path = j.task_path()
                 task_data = j.get_data()
                 j.set_state(TaskStateCode.READY)
                 break
 
-        return job_task_path, task_path, task_data
+        return job_path, task_path, task_data
 
     def add_new_task(self, job_path, task_data):
 
@@ -109,7 +112,7 @@ class Core():
 
         return True, new_task_path
 
-    # alternative prepare in main loop, save in mem, send here, instead of search every time
+    # alternative: prepare in main loop, save in mem, send here, instead of search every time
     def get_queue_task(self, cluster_name, task_type):
 
         if cluster_name not in self._cluster_job:
@@ -154,3 +157,28 @@ class Core():
         # todo: update time
 
         return True
+
+    def clean_finished_job(self):
+        clusters = self.cluster.get_all()
+
+        for c in clusters:
+            finished_job = []
+            finished_job_paths = []
+
+            cluster_jobs = self._cluster_job[c]
+
+            print('-------- clean_finished_job', len(cluster_jobs))
+
+            for j in cluster_jobs:
+                if j.get_state() == TaskStateCode.FINISHED:
+                    finished_job.append(j)
+                    finished_job_paths.append(j.job_path())
+
+            for p in finished_job_paths:
+                del self._all_job[p]
+
+            for j in finished_job:
+                self._cluster_job[c].remove(j)
+                j.delete()
+
+        # clean lost job if any (like when master crash, will not reenter _cluster_job)

@@ -10,6 +10,7 @@ class TaskStateCode():
     READY='ready'
     WORKING='working'       # set by job_task
     FINISHED='finished'     # set by job_task
+    ERROR = 'error'
 
 class TaskTypeCode():
     UNIVERSAL='universal'

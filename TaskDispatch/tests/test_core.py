@@ -20,8 +20,8 @@ class TestTask(unittest.TestCase, ZkClientMixin):
         ZkClientMixin.__init__(self)
 
         self.zk_client = self.get_client()
-        self.zk_client.delete('/TaskDispatch',recursive=True)
-        self.core = Core(self.zk_client)
+        self.zk_client.delete('/testTaskDispatch',recursive=True)
+        self.core = Core(self.zk_client, '/testTaskDispatch')
 
     def test_add_job(self):
         job_data = '''
@@ -227,3 +227,56 @@ class TestTask(unittest.TestCase, ZkClientMixin):
 
         j.delete()
 
+    def test_clean_finished_job(self):
+        new_jobs = [[] for i in range(2)]
+        all_jobs = []
+
+        self.core._cluster_job={}
+
+        for c in range(2):
+            for i in range(10):
+                job_data_template = """
+                        {{
+                            "id":"test_{cluster}_{id}",
+                            "meta_data":"",
+                            "data": {{
+                                "hello":"world"
+                            }},
+                            "cluster":"test_{cluster}",
+                            "type":"test",
+                            "priority": {priority}
+                        }}
+                        """
+                job_data = job_data_template.format(id=i, cluster=c, priority=i)
+                data = json.loads(job_data)
+                ret, path = self.core.add_new_job(data)
+                self.assertEqual(ret, True)
+                j = Job(self.zk_client, path)
+                new_jobs[c].append(j)
+                all_jobs.append(j)
+
+        self.core._cluster_job_upper_threshold=30
+        self.core._cluster_job_lower_threshold=20
+        self.core.add_cluster('test_0')
+        self.core.add_cluster('test_1')
+
+        self.core.prepare_dequeue_job()
+
+        for i,j in enumerate(new_jobs[0]):
+            if i % 2 == 0:
+                j.set_state(TaskStateCode.FINISHED)
+
+        for i,j in enumerate(new_jobs[1]):
+            if i % 2 != 0:
+                j.set_state(TaskStateCode.FINISHED)
+
+        self.core.clean_finished_job()
+
+        self.assertEqual(len(self.core._cluster_job['test_0']), 5)
+        self.assertEqual(len(self.core._cluster_job['test_1']), 5)
+
+        self.assertEqual(self.core._cluster_job['test_0'][1].get_id(), "test_0_7")
+        self.assertEqual(self.core._cluster_job['test_1'][1].get_id(), "test_1_6")
+
+        for j in all_jobs:
+            j.delete()
