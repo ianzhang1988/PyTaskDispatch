@@ -18,6 +18,7 @@ class Core():
         self.workers_path = self.base_path + '/workers'
         self.masters_path = self.base_path + '/masters'
         self.cluster_path = self.base_path + '/clusters'
+        self.timeout_path = self.base_path + '/timeout'
 
         self._cluster_job = {}
         self._all_job={}
@@ -32,6 +33,7 @@ class Core():
         self.zk_client.ensure_path(self.jobs_path)
         self.zk_client.ensure_path(self.workers_path)
         self.zk_client.ensure_path(self.masters_path)
+        self.zk_client.ensure_path(self.timeout_path)
 
     def add_cluster(self, name):
         self.cluster.add(name)
@@ -182,3 +184,16 @@ class Core():
                 j.delete()
 
         # clean lost job if any (like when master crash, will not reenter _cluster_job)
+
+    def check_abnormal(self):
+
+        for k in self._all_job:
+            job = self._all_job[k]
+            tasks_path = job.get_tasks_path()
+
+            for p in tasks_path:
+                t = Task(self.zk_client, p)
+                if t.check_worker_state():
+                    continue
+                else:
+                    t.set_state(TaskStateCode.QUEUE)

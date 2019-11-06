@@ -280,3 +280,66 @@ class TestTask(unittest.TestCase, ZkClientMixin):
 
         for j in all_jobs:
             j.delete()
+
+    def test_check_abnormal(self):
+        job_data_template = """
+            {{
+                "id":"test_{cluster}_{id}",
+                "meta_data":"",
+                "data": {{
+                    "hello":"world"
+                }},
+                "cluster":"test_{cluster}",
+                "type":"test",
+                "priority": {priority}
+            }}
+            """
+        job_data = job_data_template.format(id='001', cluster=1, priority=5)
+        data = json.loads(job_data)
+        self.core.add_cluster('test_1')
+        ret, path = self.core.add_new_job(data)
+        self.assertEqual(ret, True)
+        self.core.prepare_dequeue_job()
+
+        j = Job(self.zk_client, path)
+
+        task_data = {
+            'data':{
+                'mark': '1',
+            },
+        }
+        task_data=json.dumps(task_data)
+        ret, task_path = self.core.add_new_task(j.job_path(), task_data)
+        self.assertEqual(ret, True)
+
+        t = Task(self.zk_client, task_path)
+
+        self.zk_client.create(path+'/job_task/worker','/job_worker'.encode('utf-8'))
+        self.zk_client.create(task_path + '/worker', '/task_worker'.encode('utf-8'))
+
+        # simulate job_task working
+        j.set_state(TaskStateCode.WORKING)
+        t.set_state(TaskStateCode.WORKING)
+
+        self.core.check_abnormal()
+
+        self.assertTrue(t.check_worker_state() == True)
+        self.assertTrue(j.check_worker_state() == True)
+
+        self.zk_client.delete(task_path + '/worker')
+
+        self.core.check_abnormal()
+
+        self.assertTrue(t.check_worker_state() == False)
+        self.assertTrue(t.get_state() == TaskStateCode.QUEUE)
+
+        self.zk_client.delete(path + '/job_task/worker')
+
+        self.core.check_abnormal()
+
+        self.assertTrue(t.get_state() == TaskStateCode.KILL)
+        self.assertTrue(j.check_worker_state() == False)
+        self.assertTrue(j.get_state() == TaskStateCode.QUEUE)
+
+        j.delete()
+

@@ -10,7 +10,9 @@ class TaskStateCode():
     READY='ready'
     WORKING='working'       # set by job_task
     FINISHED='finished'     # set by job_task
-    ERROR = 'error'
+    FAILED='failed'         # set by job_task
+    ERROR = 'error'         # set by job_task
+    KILL = 'kill'           # maybe put this in a separate path
 
 class TaskTypeCode():
     UNIVERSAL='universal'

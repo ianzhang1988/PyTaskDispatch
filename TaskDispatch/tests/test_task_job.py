@@ -10,6 +10,7 @@ from ..master.job import Job
 from ..master.utility import create_new_sequence_node
 from ..master.consts import TaskStateCode
 import datetime
+import time
 
 
 class TestTask(unittest.TestCase, ZkClientMixin):
@@ -116,3 +117,25 @@ class TestTask(unittest.TestCase, ZkClientMixin):
         self.assertEqual(new_tasks_path, set(j.get_tasks_path()))
 
 
+    def test_check_worker_state(self):
+        t = Task(self.zk_client, self.base_path)
+
+        self.zk_client.create(self.base_path+'/worker','/worker/work0001'.encode('utf-8'))
+
+        self.assertEqual(t.check_worker_state(),True)
+
+        self.zk_client.delete(self.base_path+'/worker')
+
+        self.assertEqual(t.check_worker_state(), False)
+
+
+    def test_kill_flag(self):
+        t = Task(self.zk_client, self.base_path)
+
+        t.set_kill_flag()
+
+        self.assertTrue( self.zk_client.exists(self.base_path+'/kill_flag') is not None)
+
+        t.clear_kill_flag()
+
+        self.assertTrue(self.zk_client.exists(self.base_path + '/kill_flag') is None)

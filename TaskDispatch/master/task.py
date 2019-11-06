@@ -21,6 +21,12 @@ class Task():
         self.end_time_path = self.base_path + '/end_time'
         self.state_path = self.base_path + '/task_state'
 
+        # separate kill flag rather than just use taskstate.kill
+        # because server set kill and client set say working same time, could result in working
+        # we want state be kill
+        self.kill_flag_path = self.base_path + '/kill_flag'
+
+
     def task_path(self):
         return self.base_path
 
@@ -47,6 +53,9 @@ class Task():
     @get('worker_path')
     def get_worker(self):
         return self.zk_client.get(self.worker_path)[0].decode('utf-8')
+
+    def check_worker_state(self):
+        return True if self.zk_client.exists(self.worker_path) else False
 
     @set('data_path')
     def set_data(self, data):
@@ -110,3 +119,9 @@ class Task():
     @get('state_path')
     def get_state(self):
         return self.zk_client.get(self.state_path)[0].decode('utf-8')
+
+    def set_kill_flag(self):
+        ret = self.zk_client.create(self.kill_flag_path, ''.encode('utf-8'))
+
+    def clear_kill_flag(self):
+        self.zk_client.delete(self.kill_flag_path)

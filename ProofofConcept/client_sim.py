@@ -87,7 +87,7 @@ class Simulation():
 
         while self.work_flag:
             with self.global_lock:
-                print('-------- loop ping')
+                # print('-------- loop ping')
                 self.core.clean_finished_job()
                 self.core.prepare_dequeue_job()
             time.sleep(5)
@@ -135,7 +135,6 @@ class Simulation():
                 self.core.update_task_state(task_path, TaskStateCode.FINISHED)
 
     def _normal_client_task_sim(self):
-
         def add(l, r):
             return l+r
 
