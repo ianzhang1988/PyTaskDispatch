@@ -122,11 +122,11 @@ class TestTask(unittest.TestCase, ZkClientMixin):
 
         self.zk_client.create(self.base_path+'/worker','/worker/work0001'.encode('utf-8'))
 
-        self.assertEqual(t.check_worker_state(),True)
+        self.assertEqual(t.check_worker(), True)
 
         self.zk_client.delete(self.base_path+'/worker')
 
-        self.assertEqual(t.check_worker_state(), False)
+        self.assertEqual(t.check_worker(), False)
 
 
     def test_kill_flag(self):

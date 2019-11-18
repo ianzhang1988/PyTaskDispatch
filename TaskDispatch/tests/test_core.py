@@ -323,14 +323,15 @@ class TestTask(unittest.TestCase, ZkClientMixin):
 
         self.core.check_abnormal()
 
-        self.assertTrue(t.check_worker_state() == True)
-        self.assertTrue(j.check_worker_state() == True)
+        self.assertTrue(t.check_worker() == True)
+        self.assertTrue(j.check_worker() == True)
 
+        # when worker lost
         self.zk_client.delete(task_path + '/worker')
 
         self.core.check_abnormal()
 
-        self.assertTrue(t.check_worker_state() == False)
+        self.assertTrue(t.check_worker() == False)
         self.assertTrue(t.get_state() == TaskStateCode.QUEUE)
 
         self.zk_client.delete(path + '/job_task/worker')
@@ -338,8 +339,21 @@ class TestTask(unittest.TestCase, ZkClientMixin):
         self.core.check_abnormal()
 
         self.assertTrue(t.get_state() == TaskStateCode.KILL)
-        self.assertTrue(j.check_worker_state() == False)
+        self.assertTrue(j.check_worker() == False)
         self.assertTrue(j.get_state() == TaskStateCode.QUEUE)
+
+        self.zk_client.create(path+'/job_task/worker','/job_worker'.encode('utf-8'))
+        self.zk_client.create(task_path + '/worker', '/task_worker'.encode('utf-8'))
+
+        j.set_state(TaskStateCode.WORKING)
+        t.set_state(TaskStateCode.WORKING)
+
+        self.core.check_abnormal()
+
+        self.assertTrue(t.check_worker() == True)
+        self.assertTrue(j.check_worker() == True)
+
+        # test time out
 
         j.delete()
 

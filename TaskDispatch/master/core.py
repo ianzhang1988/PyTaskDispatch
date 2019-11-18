@@ -189,11 +189,23 @@ class Core():
 
         for k in self._all_job:
             job = self._all_job[k]
+
+            if not job.check_worker():
+                job.set_state(TaskStateCode.QUEUE)
+
+                tasks_path = job.get_tasks_path()
+
+                for p in tasks_path:
+                    t = Task(self.zk_client, p)
+                    t.set_state(TaskStateCode.KILL)
+                continue
+
             tasks_path = job.get_tasks_path()
 
             for p in tasks_path:
                 t = Task(self.zk_client, p)
-                if t.check_worker_state():
+                if t.check_worker():
                     continue
                 else:
                     t.set_state(TaskStateCode.QUEUE)
+

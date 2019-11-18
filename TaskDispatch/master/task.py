@@ -50,11 +50,14 @@ class Task():
             return wrapper
         return decorator
 
+    def delete(self):
+        self.zk_client.delete(self.base_path, recursive=True)
+
     @get('worker_path')
     def get_worker(self):
         return self.zk_client.get(self.worker_path)[0].decode('utf-8')
 
-    def check_worker_state(self):
+    def check_worker(self):
         return True if self.zk_client.exists(self.worker_path) else False
 
     @set('data_path')
