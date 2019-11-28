@@ -32,15 +32,23 @@ class TimeoutEvent(): # could break into two class
             self.time_out = final_time
 
     def check_time_out(self,now):
-        if not self.interval:
-            return now > self.final_time
+        # if not self.interval:
+        #     return self.check_final(now)
 
-        if now > self.time_out:
-            self.time_out += self.interval
+        if self.check_final(now):
             return True
 
+        if now >= self.time_out:
+            while True:
+                self.time_out += self.interval
+                if self.time_out > now:
+                    break
+            return True
+
+        return False
+
     def check_final(self,now):
-        return now > self.final_time
+        return now >= self.final_time
 
     def sync(self):
         data = {
@@ -74,20 +82,50 @@ class TimeoutEvent(): # could break into two class
 
 class TimeoutCallbackRegister():
     def __init__(self):
-        pass
+        self.name2func={}
+
+    def reg(self, func_name, callback):
+        self.name2func[func_name]=callback
+
+    def call(self, func_name, base_path, params):
+        if func_name not in self.name2func:
+            return
+
+        return self.name2func[func_name](base_path, **params)
+
+    def call_by_event(self, timeout_event):
+
+        self.call(
+            timeout_event.callback_func,
+            timeout_event.task_path,
+            timeout_event.parameters
+        )
+
 
 class TimeoutManager():
     def __init__(self, zk_client, base_path):
         self.zk_client = zk_client
         self.base_path = base_path
         self.zk_client.ensure_path(self.base_path)
+        self.callback_register = None
 
         self._timeout_event_list = []
 
         self._load_from_server()
 
-    def check(self):
-        pass
+    def check(self, now):
+
+        for toe in self._timeout_event_list:
+
+            if not toe.check_time_out(now):
+                continue
+
+            toe.sync()
+            self.callback_register.call_by_event(toe)
+
+            if toe.check_final(now):
+                self._delete(toe)
+
 
     def _load_from_server(self):
         all_timeout = self.zk_client.get_children(self.base_path)
@@ -99,7 +137,10 @@ class TimeoutManager():
 
             self._timeout_event_list.append(toe)
 
-    def add(self, type, task_path, callback_func, parameters, final_time, interval = None):
+    def set_callback_register(self, register):
+        self.callback_register = register
+
+    def add(self, type, task_path, callback_func, parameters, final_time, interval = None, now=None):
         timeout_event_path = create_new_sequence_node(self.zk_client,self.base_path,'timeout')
         toe = TimeoutEvent(self.zk_client, timeout_event_path)
 
@@ -107,8 +148,12 @@ class TimeoutManager():
         toe.task_path = task_path
         toe.callback_func = callback_func
         toe.parameters = parameters
+
+        if now is None:
+            now = datetime.now()
+
         if interval:
-            toe.init_time(final_time, interval, datetime.now())
+            toe.init_time(final_time, interval, now)
         else:
             toe.init_time(final_time)
 
@@ -116,9 +161,16 @@ class TimeoutManager():
 
         self._timeout_event_list.append(toe)
 
-
     def _delete(self, timeout_event):
         timeout_event.delete()
+        self._timeout_event_list.remove(timeout_event)
+
+    def delete(self, task_path):
+        to_be_delete = [toe for toe in self._timeout_event_list if toe.task_path == task_path]
+
+        for toe in to_be_delete:
+            toe.delete()
+            self._timeout_event_list.remove(toe)
 
 
 
