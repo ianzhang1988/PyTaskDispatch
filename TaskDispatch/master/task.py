@@ -21,6 +21,12 @@ class Task():
         self.end_time_path = self.base_path + '/end_time'
         self.state_path = self.base_path + '/task_state'
 
+        # separate form task_state, avoiding async operation write at same time resulting in error state
+        self.state_abnormal_path = self.base_path + '/task_state_abnormal'
+
+        # for client data
+        self.client_data_entry = self.base_path + '/client_entry'
+
         # separate kill flag rather than just use taskstate.kill
         # because server set kill and client set say working same time, could result in working
         # we want state be kill

@@ -8,6 +8,7 @@ from .job import Job
 from .task import Task
 from .consts import TaskStateCode
 from .cluster import Cluster
+from .timeout import TimeoutManager
 
 class Core():
     def __init__(self, zk_client, base_path='/TaskDispatch'):
