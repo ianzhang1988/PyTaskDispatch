@@ -22,7 +22,7 @@ class Task():
         self.state_path = self.base_path + '/task_state'
 
         # separate form task_state, avoiding async operation write at same time resulting in error state
-        self.state_abnormal_path = self.base_path + '/task_state_abnormal'
+        #self.state_abnormal_path = self.base_path + '/task_state_abnormal'
 
         # for client data
         self.client_data_entry = self.base_path + '/client_entry'
@@ -30,7 +30,9 @@ class Task():
         # separate kill flag rather than just use taskstate.kill
         # because server set kill and client set say working same time, could result in working
         # we want state be kill
-        self.kill_flag_path = self.base_path + '/kill_flag'
+        #self.kill_flag_path = self.base_path + '/kill_flag'
+
+        self.state = None
 
 
     def task_path(self):
@@ -123,14 +125,17 @@ class Task():
 
     @set('state_path')
     def set_state(self, data):
+        self.state = data
         self.zk_client.set(self.state_path, data.encode('utf-8'))
 
     @get('state_path')
     def get_state(self):
-        return self.zk_client.get(self.state_path)[0].decode('utf-8')
+        if not self.state:
+            self.state = self.zk_client.get(self.state_path)[0].decode('utf-8')
+        return self.state
 
-    def set_kill_flag(self):
-        ret = self.zk_client.create(self.kill_flag_path, ''.encode('utf-8'))
+    # def set_kill_flag(self):
+    #     ret = self.zk_client.create(self.kill_flag_path, ''.encode('utf-8'))
 
-    def clear_kill_flag(self):
-        self.zk_client.delete(self.kill_flag_path)
+    # def clear_kill_flag(self):
+    #     self.zk_client.delete(self.kill_flag_path)
