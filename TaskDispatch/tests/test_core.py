@@ -223,7 +223,7 @@ class TestTask(unittest.TestCase, ZkClientMixin):
 
         self.core.update_task_state(path+'/job_task', TaskStateCode.WORKING)
 
-        self.assertEqual(j.get_state(), TaskStateCode.WORKING)
+        self.assertEqual(j.get_state_no_cache(), TaskStateCode.WORKING)
 
         j.delete()
 
@@ -332,15 +332,15 @@ class TestTask(unittest.TestCase, ZkClientMixin):
         self.core.check_abnormal()
 
         self.assertTrue(t.check_worker() == False)
-        self.assertTrue(t.get_state() == TaskStateCode.QUEUE)
+        self.assertEqual(t.get_state_no_cache(), TaskStateCode.DEQUEUE)
 
         self.zk_client.delete(path + '/job_task/worker')
 
         self.core.check_abnormal()
 
-        self.assertTrue(t.get_state() == TaskStateCode.KILL)
+        self.assertEqual(t.get_state_no_cache(), TaskStateCode.KILL)
         self.assertTrue(j.check_worker() == False)
-        self.assertTrue(j.get_state() == TaskStateCode.QUEUE)
+        self.assertEqual(j.get_state_no_cache(), TaskStateCode.DEQUEUE)
 
         self.zk_client.create(path+'/job_task/worker','/job_worker'.encode('utf-8'))
         self.zk_client.create(task_path + '/worker', '/task_worker'.encode('utf-8'))

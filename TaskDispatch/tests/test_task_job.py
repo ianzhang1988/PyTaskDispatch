@@ -129,13 +129,13 @@ class TestTask(unittest.TestCase, ZkClientMixin):
         self.assertEqual(t.check_worker(), False)
 
 
-    def test_kill_flag(self):
-        t = Task(self.zk_client, self.base_path)
-
-        t.set_kill_flag()
-
-        self.assertTrue( self.zk_client.exists(self.base_path+'/kill_flag') is not None)
-
-        t.clear_kill_flag()
-
-        self.assertTrue(self.zk_client.exists(self.base_path + '/kill_flag') is None)
+    # def test_kill_flag(self):
+    #     t = Task(self.zk_client, self.base_path)
+    #
+    #     t.set_kill_flag()
+    #
+    #     self.assertTrue( self.zk_client.exists(self.base_path+'/kill_flag') is not None)
+    #
+    #     t.clear_kill_flag()
+    #
+    #     self.assertTrue(self.zk_client.exists(self.base_path + '/kill_flag') is None)

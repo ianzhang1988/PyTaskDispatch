@@ -40,3 +40,4 @@ class StateGraph():
             raise Exception('%s not in state graph' % current)
 
         return next in StateGraph.graph[current]
+

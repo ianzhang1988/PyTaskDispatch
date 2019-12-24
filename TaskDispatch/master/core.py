@@ -9,6 +9,20 @@ from .task import Task
 from .consts import TaskStateCode
 from .cluster import Cluster
 from .timeout import TimeoutManager
+from queue import Queue
+from collections import ChainMap
+
+def once():
+    counter = 1
+    def helper(func):
+        nonlocal counter
+        if counter<1:
+            return
+
+        func()
+        counter -= 1
+
+    return helper
 
 class Core():
     def __init__(self, zk_client, base_path='/TaskDispatch'):
@@ -23,11 +37,16 @@ class Core():
 
         self._cluster_job = {}
         self._all_job={}
+        self._all_task={}
 
         self._cluster_job_upper_threshold=50
         self._cluster_job_lower_threshold=20
 
         self.cluster = Cluster(self.zk_client, self.cluster_path)
+
+        self.state_queue = Queue(9999)
+
+        self.call_once = once()
 
     def make_sure_tree_structure(self):
         self.zk_client.ensure_path(self.base_path)
@@ -81,6 +100,19 @@ class Core():
 
             self._all_job.update({ j.job_path():j for j in jobs_needed})
 
+        self.call_once(self.load_tasks)
+
+    # load task, in situation of master switch
+    def load_tasks(self):
+        for j in self._all_job.values():
+            tasks_path = j.get_tasks_path()
+
+            for p in tasks_path:
+                if p in self._all_task:
+                    continue
+                t = Task(self.zk_client, p)
+                self._all_task[p]=t
+
     def get_dequeue_job_task(self, cluster_name, task_type):
         jobs = self._cluster_job[cluster_name]
 
@@ -111,7 +143,8 @@ class Core():
 
         t = Task(self.zk_client, new_task_path)
         t.set_data(task_data)
-        t.set_state(TaskStateCode.QUEUE)
+        t.set_state(TaskStateCode.DEQUEUE)
+        self._all_task[new_task_path] = t
 
         return True, new_task_path
 
@@ -139,8 +172,13 @@ class Core():
                 continue
 
             for t_path in tasks:
-                t = Task(self.zk_client, t_path)
-                if t.get_state() != TaskStateCode.QUEUE:
+
+                # t = Task(self.zk_client, t_path)
+                if t_path not in self._all_task:
+                    print('-----------------get_queue_task path not in _all_task')
+
+                t = self._all_task[t_path]
+                if t.get_state() != TaskStateCode.DEQUEUE:
                     continue
 
                 dequeue_task_path = t_path
@@ -154,7 +192,13 @@ class Core():
         if not self.zk_client.exists(task_path):
             return False
 
-        t = Task(self.zk_client, task_path)
+        #t = Task(self.zk_client, task_path)
+        all_task_job = ChainMap(self._all_task, self._all_job)
+        if task_path not in all_task_job:
+            print('-----------------update_task_state path not in _all_task')
+            return False
+
+        t = all_task_job[task_path]
         t.set_state(state)
 
         # todo: update time
@@ -192,12 +236,16 @@ class Core():
             job = self._all_job[k]
 
             if not job.check_worker():
-                job.set_state(TaskStateCode.QUEUE)
+                job.set_state(TaskStateCode.DEQUEUE)
 
                 tasks_path = job.get_tasks_path()
 
                 for p in tasks_path:
-                    t = Task(self.zk_client, p)
+                    #t = Task(self.zk_client, p)
+                    if p not in self._all_task:
+                        print('-----------------check_abnormal path not in _all_task')
+
+                    t = self._all_task[p]
                     t.set_state(TaskStateCode.KILL)
                 continue
 
@@ -208,5 +256,5 @@ class Core():
                 if t.check_worker():
                     continue
                 else:
-                    t.set_state(TaskStateCode.QUEUE)
+                    t.set_state(TaskStateCode.DEQUEUE)
 

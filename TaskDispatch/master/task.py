@@ -134,6 +134,10 @@ class Task():
             self.state = self.zk_client.get(self.state_path)[0].decode('utf-8')
         return self.state
 
+    @get('state_path')
+    def get_state_no_cache(self):
+        return self.zk_client.get(self.state_path)[0].decode('utf-8')
+
     # def set_kill_flag(self):
     #     ret = self.zk_client.create(self.kill_flag_path, ''.encode('utf-8'))
 
