@@ -10,7 +10,8 @@ from .consts import TaskStateCode
 from .cluster import Cluster
 from .timeout import TimeoutManager
 from queue import Queue
-from collections import ChainMap
+#from collections import ChainMap
+from .state_check import StateGraph
 
 def once():
     counter = 1
@@ -47,6 +48,8 @@ class Core():
         self.state_queue = Queue(9999)
 
         self.call_once = once()
+
+        self.state_checker = StateGraph()
 
     def make_sure_tree_structure(self):
         self.zk_client.ensure_path(self.base_path)
@@ -94,9 +97,12 @@ class Core():
 
             jobs_needed = jobs_this_cluster_sorted[:self._cluster_job_upper_threshold - size]
             for j in jobs_needed:
+                job_task = Task(self.zk_client, j.job_task_base_path)
+                self._all_task[j.job_task_base_path]=job_task
                 j.set_state(TaskStateCode.DEQUEUE)
             self._cluster_job[c].extend(jobs_needed)
             self._cluster_job[c] = sorted(self._cluster_job[c], key=lambda x: x.get_priority(), reverse=True )
+
 
             self._all_job.update({ j.job_path():j for j in jobs_needed})
 
@@ -193,17 +199,40 @@ class Core():
             return False
 
         #t = Task(self.zk_client, task_path)
-        all_task_job = ChainMap(self._all_task, self._all_job)
-        if task_path not in all_task_job:
+        if task_path not in self._all_task:
             print('-----------------update_task_state path not in _all_task')
             return False
 
-        t = all_task_job[task_path]
-        t.set_state(state)
+        # to prevent state overwrite by different thread, resulting in error state
+        # simplest way would be put a lock here
+        # maybe we can use asyncio to align input state, better implement whole project using asyncio
+
+        ret_queue = Queue(1)
+        self.state_queue.put((task_path, state, ret_queue))
+
+        ret = ret_queue.get()
+
+        # t = self._all_task[task_path]
+        # t.set_state(state)
 
         # todo: update time
 
-        return True
+        return ret
+
+    def _change_state_thread(self):
+        while True:
+            task_path, goto_state, ret_queue = self.state_queue.get()
+            if task_path is None:
+                break
+
+            t = self._all_task[task_path]
+            current_state = t.get_state()
+            isvalid = self.state_checker.check_next(current_state, goto_state)
+            if isvalid:
+                ret_queue.put(True)
+            else:
+                ret_queue.put(False)
+
 
     def clean_finished_job(self):
         clusters = self.cluster.get_all()
@@ -223,8 +252,10 @@ class Core():
 
             for p in finished_job_paths:
                 del self._all_job[p]
+                print('!!!!!',len(self._all_job))
 
             for j in finished_job:
+                del self._all_task[j.job_task_base_path]
                 self._cluster_job[c].remove(j)
                 j.delete()
 

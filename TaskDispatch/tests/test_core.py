@@ -270,7 +270,13 @@ class TestTask(unittest.TestCase, ZkClientMixin):
             if i % 2 != 0:
                 j.set_state(TaskStateCode.FINISHED)
 
+        self.assertEqual(len(self.core._all_job), 20)
+        self.assertEqual(len(self.core._all_task), 20)
+
         self.core.clean_finished_job()
+
+        self.assertEqual(len(self.core._all_job), 10)
+        self.assertEqual(len(self.core._all_task), 10)
 
         self.assertEqual(len(self.core._cluster_job['test_0']), 5)
         self.assertEqual(len(self.core._cluster_job['test_1']), 5)
