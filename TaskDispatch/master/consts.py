@@ -14,11 +14,8 @@ class TaskStateCode():
     FINISHED='finished'     # set by job_task
     FAILED='failed'         # set by job_task
 
-
-    ERROR = 'error'         #
-
+    # Omega state set by master
     TIMEOUT='timeout'
-
     KILL = 'kill'           # maybe put this in a separate path
 
 class TaskTypeCode():
