@@ -6,9 +6,10 @@
 from .utility import create_new_sequence_node
 from .job import Job
 from .task import Task
-from .consts import TaskStateCode
+from .consts import TaskStateCode, TimeoutType
 from .cluster import Cluster
-from .timeout import TimeoutManager
+from .timeout import TimeoutManager, TimeoutCallbackRegister
+from datetime import timedelta, datetime
 
 class Core():
     def __init__(self, zk_client, base_path='/TaskDispatch'):
@@ -28,6 +29,15 @@ class Core():
         self._cluster_job_lower_threshold=20
 
         self.cluster = Cluster(self.zk_client, self.cluster_path)
+
+        register = TimeoutCallbackRegister()
+        register.reg('deal_job_timeout', self.deal_job_timeout)
+        register.reg('deal_task_timeout', self.deal_task_timeout)
+        self.timeout_manager = TimeoutManager(self.zk_client, self.timeout_path)
+        self.timeout_manager.set_callback_register(register)
+
+        self.job_timeout = timedelta(hours=36)
+        self.task_timeout = timedelta(hours=3)
 
     def make_sure_tree_structure(self):
         self.zk_client.ensure_path(self.base_path)
@@ -89,6 +99,8 @@ class Core():
         task_data = None
 
         for j in jobs:
+            if j.get_omega_state() != None:
+                continue
             if j.get_type() != task_type:
                 continue
             if j.get_state() == TaskStateCode.DEQUEUE:
@@ -97,6 +109,9 @@ class Core():
                 task_data = j.get_data()
                 j.set_state(TaskStateCode.READY)
                 break
+
+        if job_path:
+            self.timeout_manager.add(TimeoutType.Job, job_path, 'deal_job_timeout', None, datetime.now()+ self.job_timeout)
 
         return job_path, task_path, task_data
 
@@ -127,6 +142,9 @@ class Core():
         jobs_in_cluster = self._cluster_job[cluster_name]
 
         for job in jobs_in_cluster:
+            if job.get_omega_state() != None:
+                continue
+
             if job.get_type() != task_type:
                 continue
 
@@ -140,11 +158,18 @@ class Core():
 
             for t_path in tasks:
                 t = Task(self.zk_client, t_path)
+
+                if t.get_omega_state() != None:
+                    continue
+
                 if t.get_state() != TaskStateCode.QUEUE:
                     continue
 
                 dequeue_task_path = t_path
                 t.set_state( TaskStateCode.READY )
+
+                self.timeout_manager.add(TimeoutType.Task, dequeue_task_path, 'deal_task_timeout', None,
+                                         datetime.now() + self.task_timeout)
 
                 return True, dequeue_task_path
 
@@ -158,6 +183,15 @@ class Core():
         t.set_state(state)
 
         # todo: update time
+
+        return True
+
+    def update_task_omega_state(self, task_path, state):
+        if not self.zk_client.exists(task_path):
+            return False
+
+        t = Task(self.zk_client, task_path)
+        t.set_omega_state(state)
 
         return True
 
@@ -198,15 +232,34 @@ class Core():
 
                 for p in tasks_path:
                     t = Task(self.zk_client, p)
-                    t.set_state(TaskStateCode.KILL)
+                    t.set_omega_state(TaskStateCode.KILL)
                 continue
 
             tasks_path = job.get_tasks_path()
 
             for p in tasks_path:
                 t = Task(self.zk_client, p)
+
+                if t.get_omega_state() == TaskStateCode.TIMEOUT:
+                    t.reset_omega_state()
+                    t.set_state(TaskStateCode.QUEUE)
+
                 if t.check_worker():
                     continue
                 else:
                     t.set_state(TaskStateCode.QUEUE)
 
+
+    def deal_job_timeout(self, job_path):
+        j = Job(self.zk_client, job_path)
+        j.set_omega_state(TaskStateCode.TIMEOUT)
+
+        tasks_path = j.get_tasks_path()
+
+        for p in tasks_path:
+            t = Task(self.zk_client, p)
+            t.set_omega_state(TaskStateCode.KILL)
+
+    def deal_task_timeout(self, task_path):
+        t = Task(self.zk_client, task_path)
+        t.set_omega_state(TaskStateCode.TIMEOUT)

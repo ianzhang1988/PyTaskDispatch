@@ -30,6 +30,8 @@ class CallbackTest():
         self.test_case.assertTrue('fall' in v1)
         self.test_case.assertTrue('out' in v2)
 
+    def test3(self, base_path):
+        self.test_case.assertTrue('testTimeout' in base_path)
 
 class TestTimeout(unittest.TestCase, ZkClientMixin):
 
@@ -47,6 +49,7 @@ class TestTimeout(unittest.TestCase, ZkClientMixin):
         self.callback_register = TimeoutCallbackRegister()
         self.callback_register.reg('test', self.fake_funcs.test)
         self.callback_register.reg('test2', self.fake_funcs.test2)
+        self.callback_register.reg('test3', self.fake_funcs.test3)
 
         self.timeout_manager.set_callback_register(self.callback_register)
 
@@ -164,6 +167,7 @@ class TestTimeout(unittest.TestCase, ZkClientMixin):
         self.callback_register.call('test', '/testTimeout/task01' ,{'content': 'hello2'})
 
         self.callback_register.call('test2', '/testTimeout/task01', {'v1': 'fall', 'v2':'out'})
+        self.callback_register.call('test3', '/testTimeout/task01', None)
 
         to1 = TimeoutEvent(self.zk_client, '/testTimeout/timeout_test1/')
         now = datetime.strptime('2018-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')

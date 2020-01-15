@@ -77,6 +77,22 @@ class TestTask(unittest.TestCase, ZkClientMixin):
         t.set_dequeue_time('2019-09-10 00:00:00')
         self.assertEqual(t.get_dequeue_time(), '2019-09-10 00:00:00')
 
+        t.set_omega_state(TaskStateCode.KILL)
+        self.assertEqual(TaskStateCode.KILL, t.get_omega_state())
+
+        t.reset_omega_state()
+        self.assertEqual(None, t.get_omega_state())
+
+        key='hello'
+        value='world'
+        key2='ni'
+        value2='hao'
+        t.set_client_data(key, value)
+        t.set_client_data(key2, value2)
+
+        self.assertEqual(t.get_client_data(key), value)
+        self.assertEqual(t.get_client_data_all(), {key:value, key2:value2})
+
 
     def test_job(self):
         t = Job(self.zk_client, self.job_base_path)
@@ -98,6 +114,7 @@ class TestTask(unittest.TestCase, ZkClientMixin):
 
         t.set_type('universal')
         self.assertEqual(t.get_type(), 'universal')
+
 
     def test_job_get_tasks(self):
         j = Job(self.zk_client, self.job_base_path)
@@ -129,13 +146,3 @@ class TestTask(unittest.TestCase, ZkClientMixin):
         self.assertEqual(t.check_worker(), False)
 
 
-    def test_kill_flag(self):
-        t = Task(self.zk_client, self.base_path)
-
-        t.set_kill_flag()
-
-        self.assertTrue( self.zk_client.exists(self.base_path+'/kill_flag') is not None)
-
-        t.clear_kill_flag()
-
-        self.assertTrue(self.zk_client.exists(self.base_path + '/kill_flag') is None)

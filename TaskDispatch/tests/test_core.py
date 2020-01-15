@@ -338,7 +338,7 @@ class TestTask(unittest.TestCase, ZkClientMixin):
 
         self.core.check_abnormal()
 
-        self.assertTrue(t.get_state() == TaskStateCode.KILL)
+        self.assertTrue(t.get_omega_state() == TaskStateCode.KILL)
         self.assertTrue(j.check_worker() == False)
         self.assertTrue(j.get_state() == TaskStateCode.QUEUE)
 
@@ -357,3 +357,81 @@ class TestTask(unittest.TestCase, ZkClientMixin):
 
         j.delete()
 
+    def test_timeout(self):
+        self.core.job_timeout = datetime.timedelta(hours=1)
+        self.core.task_timeout = datetime.timedelta(minutes=40)
+
+        job_data_template = """
+            {{
+                "id":"test_{cluster}_{id}",
+                "meta_data":"",
+                "data": {{
+                    "hello":"world"
+                }},
+                "cluster":"test_{cluster}",
+                "type":"test",
+                "priority": {priority}
+            }}
+            """
+        job_data = job_data_template.format(id='001', cluster=1, priority=5)
+        data = json.loads(job_data)
+        self.core.add_cluster('test_1')
+        ret, path = self.core.add_new_job(data)
+        self.assertEqual(ret, True)
+        self.core.prepare_dequeue_job()
+
+        # set job time out 1h task time out 40min
+        # task time out, reschedule, job time out
+
+        now = datetime.datetime.now()
+
+        job_path, task_path, task_data = self.core.get_dequeue_job_task('test_1', 'test')
+
+        self.assertEqual(path, job_path)
+
+        j = Job(self.zk_client, job_path)
+
+        j.set_state(TaskStateCode.WORKING)
+
+        task_data = {
+            'data': {
+                'mark': '1',
+            },
+        }
+        task_data = json.dumps(task_data)
+        ret, task_path_tmp = self.core.add_new_task(j.job_path(), task_data)
+        self.assertEqual(ret, True)
+
+        ret, task_path = self.core.get_queue_task('test_1', 'test')
+
+        self.assertEqual(True, ret, task_path)
+        self.assertEqual(task_path, task_path_tmp)
+
+        t = Task(self.zk_client, task_path)
+
+        self.core.timeout_manager.check( now + datetime.timedelta(minutes=41) )
+
+        self.assertEqual(TaskStateCode.TIMEOUT,t.get_omega_state())
+
+        # dispatch again
+        self.zk_client.create(path+'/job_task/worker','/job_worker'.encode('utf-8'))
+        self.zk_client.create(task_path + '/worker', '/task_worker'.encode('utf-8'))
+        self.core.check_abnormal()
+
+        self.assertEqual(TaskStateCode.QUEUE, t.get_state())
+
+        ret, task_path = self.core.get_queue_task('test_1', 'test')
+
+        self.assertEqual(True, ret)
+        self.assertEqual(task_path, task_path_tmp)
+
+        self.assertEqual(TaskStateCode.READY, t.get_state())
+
+        self.core.timeout_manager.check(now + datetime.timedelta(minutes=80))
+
+        self.assertEqual(TaskStateCode.TIMEOUT, j.get_omega_state())
+        # job time out set task to kill or some step set all time out job's task kill ?
+        self.assertEqual(TaskStateCode.KILL, t.get_omega_state())
+
+        # clean
+        j.delete()

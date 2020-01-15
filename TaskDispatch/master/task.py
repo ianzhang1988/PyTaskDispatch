@@ -22,15 +22,10 @@ class Task():
         self.state_path = self.base_path + '/task_state'
 
         # separate form task_state, avoiding async operation write at same time resulting in error state
-        self.state_abnormal_path = self.base_path + '/task_state_abnormal'
+        self.omega_state_path = self.base_path + '/omega_state'
 
-        # for client data
+        # for client data, just put key value pair here
         self.client_data_entry = self.base_path + '/client_entry'
-
-        # separate kill flag rather than just use taskstate.kill
-        # because server set kill and client set say working same time, could result in working
-        # we want state be kill
-        self.kill_flag_path = self.base_path + '/kill_flag'
 
 
     def task_path(self):
@@ -129,8 +124,31 @@ class Task():
     def get_state(self):
         return self.zk_client.get(self.state_path)[0].decode('utf-8')
 
-    def set_kill_flag(self):
-        ret = self.zk_client.create(self.kill_flag_path, ''.encode('utf-8'))
+    @set('omega_state_path')
+    def set_omega_state(self, state):
+        self.zk_client.set(self.omega_state_path, state.encode('utf-8'))
 
-    def clear_kill_flag(self):
-        self.zk_client.delete(self.kill_flag_path)
+    @get('omega_state_path')
+    def get_omega_state(self):
+        return self.zk_client.get(self.omega_state_path)[0].decode('utf-8')
+
+    def reset_omega_state(self):
+        if not self.zk_client.exists(self.omega_state_path):
+            return True
+        self.zk_client.delete(self.omega_state_path)
+
+    @set('client_data_entry')
+    def set_client_data(self, key, value):
+        path = self.client_data_entry + f'/{key}'
+        self.zk_client.ensure_path(path)
+        self.zk_client.set(path, value.encode('utf-8'))
+
+    @get('client_data_entry')
+    def get_client_data(self, key):
+        path = self.client_data_entry + f'/{key}'
+        return self.zk_client.get(path)[0].decode('utf-8')
+
+    @get('client_data_entry')
+    def get_client_data_all(self):
+        key_list = self.zk_client.get_children(self.client_data_entry)
+        return {key: self.zk_client.get(self.client_data_entry + f'/{key}')[0].decode('utf-8') for key in key_list}

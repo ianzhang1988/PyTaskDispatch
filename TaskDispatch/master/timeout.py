@@ -91,6 +91,9 @@ class TimeoutCallbackRegister():
         if func_name not in self.name2func:
             return
 
+        if params is None:
+            return self.name2func[func_name](base_path)
+
         return self.name2func[func_name](base_path, **params)
 
     def call_by_event(self, timeout_event):
