@@ -8,7 +8,7 @@ sys.path.append('../')
 from kazoo.client import KazooClient
 from threading import Thread, Lock
 from TaskDispatch.master.core import Core
-from TaskDispatch.master.task import Task
+from TaskDispatch.Utility.task import Task
 from TaskDispatch.master.consts import TaskStateCode
 import time, json
 import random

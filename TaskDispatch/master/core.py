@@ -4,8 +4,8 @@
 # @Email   : ian.zhang.88@outlook.com
 
 from .utility import create_new_sequence_node
-from .job import Job
-from .task import Task
+from TaskDispatch.Utility.job import Job
+from TaskDispatch.Utility.task import Task
 from .consts import TaskStateCode, TimeoutType
 from .cluster import Cluster
 from .timeout import TimeoutManager, TimeoutCallbackRegister

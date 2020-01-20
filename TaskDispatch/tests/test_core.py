@@ -6,13 +6,13 @@
 import unittest
 from .utility import ZkClientMixin
 from ..master.core import Core
-from ..master.task import Task
-from ..master.job import Job
+from TaskDispatch.Utility.task import Task
+from TaskDispatch.Utility.job import Job
 from ..master.cluster import Cluster
 from ..master.consts import TaskStateCode
 import datetime
 import json
-import random
+
 
 class TestTask(unittest.TestCase, ZkClientMixin):
 
@@ -435,3 +435,6 @@ class TestTask(unittest.TestCase, ZkClientMixin):
 
         # clean
         j.delete()
+
+    def test_job_kill(self):
+        pass

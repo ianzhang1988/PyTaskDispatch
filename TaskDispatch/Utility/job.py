@@ -50,43 +50,43 @@ class Job(Task):
     def delete(self):
         self.zk_client.delete(self.job_base_path, recursive=True)
 
-    @Task.set('meta_data_path')
+    @Task.set
     def set_meta_data(self, data):
         self.zk_client.set(self.meta_data_path, data.encode('utf-8'))
 
-    @Task.get('meta_data_path')
+    @Task.get
     def get_meta_data(self):
         return self.zk_client.get(self.meta_data_path)[0].decode('utf-8')
 
-    @Task.set('id_path')
+    @Task.set
     def set_id(self, data):
         self.zk_client.set(self.id_path, data.encode('utf-8'))
 
-    @Task.get('id_path')
+    @Task.get
     def get_id(self):
         return self.zk_client.get(self.id_path)[0].decode('utf-8')
 
-    @Task.set('cluster_path')
+    @Task.set
     def set_cluster(self, data):
         self.zk_client.set(self.cluster_path, data.encode('utf-8'))
 
-    @Task.get('cluster_path')
+    @Task.get
     def get_cluster(self):
         return self.zk_client.get(self.cluster_path)[0].decode('utf-8')
 
-    @Task.set('type_path')
+    @Task.set
     def set_type(self, data):
         self.zk_client.set(self.type_path, data.encode('utf-8'))
 
-    @Task.get('type_path')
+    @Task.get
     def get_type(self):
         return self.zk_client.get(self.type_path)[0].decode('utf-8')
 
-    @Task.set('priority_path')
+    @Task.set
     def set_priority(self, data):
         self.zk_client.set(self.priority_path, data.encode('utf-8'))
 
-    @Task.get('priority_path')
+    @Task.get
     def get_priority(self):
         return int(self.zk_client.get(self.priority_path)[0].decode('utf-8'))
 

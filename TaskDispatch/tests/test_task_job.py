@@ -5,12 +5,11 @@
 
 import unittest
 from .utility import ZkClientMixin
-from ..master.task import Task
-from ..master.job import Job
+from TaskDispatch.Utility.task import Task
+from TaskDispatch.Utility.job import Job
 from ..master.utility import create_new_sequence_node
 from ..master.consts import TaskStateCode
 import datetime
-import time
 
 
 class TestTask(unittest.TestCase, ZkClientMixin):
